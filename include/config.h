@@ -6,7 +6,7 @@
 #define PITCH_MAX  89.0f
 #define DISTANCE_UNIT 1.0f
 #define FOV 90.0f
-#define HEIGTH 200
-#define WIDTH 200
+#define MIN_HEIGTH 250
+#define MIN_WIDTH 1200
 
 #endif

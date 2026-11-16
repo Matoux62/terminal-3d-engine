@@ -1,8 +1,9 @@
 #include "type.h"
-#include "input.h"
+#include "console.h"
 #include "render.h"
 #include "debug.h"
 #include "model.h"
+#include "framebuffer.h"
 
 #include <stdio.h>
 #include <conio.h> 
@@ -10,7 +11,6 @@
 
 int main(void) {
 	Camera camera = {{0.0f, 0.0f, 0.0f}, 0.0f, 0.0f, 0.0f};
-
 
     Object test_objects[MAX_OBJECTS];
     test_objects[0] = (Object){.pos = {0.0f, 0.0f, 10.0f},.rotation = {0.0f, 0.0f, 0.0f},.scale = {2.0f, 2.0f, 2.0f},.model = &DetailedCylinder};
@@ -26,22 +26,24 @@ int main(void) {
         scene.object_list[i] = &test_objects[i];
     }
 
-    FrameBuffer bufs[2];
+    FrameBuffer bufs[2] = {0};
     FrameBuffer *front = &bufs[0], *back = &bufs[1];
-    memset(front->buffer, ' ', sizeof front->buffer);
-    memset(back->buffer, ' ', sizeof back->buffer);
 
     HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
-    raw_on(h);
+    init_console();
 
     while (1)
     {
+        if (update_console()) {
+        fb_resize(&bufs[0], console_size.X, console_size.Y);
+        fb_resize(&bufs[1], console_size.X, console_size.Y);
+        }   
+
         if (_kbhit())
         {
             int k = read_key();
             if (k == 27) break;
             input_update(k, &camera);
-            
         }
 
         render(&scene, &camera, back);
@@ -50,4 +52,6 @@ int main(void) {
 
         Sleep(33);
     }
+    fb_free(&bufs[0]);
+    fb_free(&bufs[1]);
 }

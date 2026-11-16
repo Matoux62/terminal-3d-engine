@@ -94,7 +94,7 @@ TrianglesObject view_transform(TrianglesObject *triangles_object, Camera *cam)
     return *triangles_object;
 }
 
-TrianglesObjectImage project(TrianglesObject *triangles_object)
+TrianglesObjectImage project(TrianglesObject *triangles_object, int width, int height)
 /*Troisieme etape du rendu, cette fonctione prend une liste de triangle Vec3 et project le triangle tous ses point sont visible, elle renvoi donc une liste de triangle Vec2 ou None si aucun triangle n'est visible*/
 {
     TrianglesObjectImage res;
@@ -102,7 +102,7 @@ TrianglesObjectImage project(TrianglesObject *triangles_object)
     res.triangles = malloc(sizeof(TriangleImage) * triangles_object->triangle_count);
 
     float t = sinf_deg(FOV / 2) / cosf_deg(FOV / 2);
-    float aspect = (float)WIDTH / (HEIGTH * 2.0);
+    float aspect = (float)width / (height * 2.0);
     float tx = t * aspect;
     float ty = t;
 
@@ -113,12 +113,12 @@ TrianglesObjectImage project(TrianglesObject *triangles_object)
         if (triangle.a.z < 0.1 || triangle.b.z < 0.1 || triangle.c.z < 0.1)
             continue;
 
-        Vec2 a = {(triangle.a.x / (triangle.a.z * tx) + 1.0f) * 0.5f * WIDTH,
-                  (1.0f - triangle.a.y / (triangle.a.z * ty)) * 0.5f * HEIGTH};
-        Vec2 b = {(triangle.b.x / (triangle.b.z * tx) + 1.0f) * 0.5f * WIDTH,
-                  (1.0f - triangle.b.y / (triangle.b.z * ty)) * 0.5f * HEIGTH};
-        Vec2 c = {(triangle.c.x / (triangle.c.z * tx) + 1.0f) * 0.5f * WIDTH,
-                  (1.0f - triangle.c.y / (triangle.c.z * ty)) * 0.5f * HEIGTH};
+        Vec2 a = {(triangle.a.x / (triangle.a.z * tx) + 1.0f) * 0.5f * width,
+                  (1.0f - triangle.a.y / (triangle.a.z * ty)) * 0.5f * height};
+        Vec2 b = {(triangle.b.x / (triangle.b.z * tx) + 1.0f) * 0.5f * width,
+                  (1.0f - triangle.b.y / (triangle.b.z * ty)) * 0.5f * height};
+        Vec2 c = {(triangle.c.x / (triangle.c.z * tx) + 1.0f) * 0.5f * width,
+                  (1.0f - triangle.c.y / (triangle.c.z * ty)) * 0.5f * height};
 
         res.triangles[res.triangle_count] = (TriangleImage){a, b, c};
         res.triangle_count++;
@@ -141,9 +141,9 @@ void rasterization(TrianglesObjectImage *triangle_image, FrameBuffer *buffer)
             continue;
 
         int min_x = (int)fmaxf(0.0f,         floorf(fminf(a.x, fminf(b.x, c.x))));
-        int max_x = (int)fminf(WIDTH - 1,    ceilf (fmaxf(a.x, fmaxf(b.x, c.x))));
+        int max_x = (int)fminf(buffer->width - 1,    ceilf (fmaxf(a.x, fmaxf(b.x, c.x))));
         int min_y = (int)fmaxf(0.0f,         floorf(fminf(a.y, fminf(b.y, c.y))));
-        int max_y = (int)fminf(HEIGTH - 1,   ceilf (fmaxf(a.y, fmaxf(b.y, c.y))));
+        int max_y = (int)fminf(buffer->height - 1,   ceilf (fmaxf(a.y, fmaxf(b.y, c.y))));
 
         for (int y = min_y; y <= max_y; y++)
         {
@@ -157,7 +157,7 @@ void rasterization(TrianglesObjectImage *triangle_image, FrameBuffer *buffer)
                 float w2 = (a.x - c.x) * (py - c.y) - (a.y - c.y) * (px - c.x);  // arete CA
 
                 if ((w0 >= 0 && w1 >= 0 && w2 >= 0) || (w0 <= 0 && w1 <= 0 && w2 <= 0))
-                    buffer->buffer[y * WIDTH + x] = '#';
+                    buffer->buffer[y * buffer->width + x] = '#';
             }
         }
     }
@@ -170,28 +170,23 @@ void swap_buffer(FrameBuffer **A, FrameBuffer **B)
     *B = tmp;
 }
 
-void display(FrameBuffer *buffer, HANDLE h)
-/*Affiche le framebuffer dans la console en ecrivant directement dans les cellules, sans deplacer le curseur*/
-{
-    DWORD written;
-    COORD origin = {0, 0};
-    WriteConsoleOutputCharacterA(h, buffer->buffer, WIDTH * HEIGTH, origin, &written);
-}
-
 void render(Scene *scene, Camera *cam, FrameBuffer *buffer)
 /*Chef d'orchestre du rendu : vide le buffer, puis pour chaque objet de la scene
   applique model -> view -> projection -> rasterisation*/
 {
-    memset(buffer->buffer, ' ', WIDTH * HEIGTH);
+    if (!buffer->buffer)
+        return;
+
+    memset(buffer->buffer, ' ', (size_t)buffer->width * buffer->height);
 
     for (int i = 0; i < scene->current_nb_object; i++)
     {
         Object *obj = scene->object_list[i];
 
-        TrianglesObject triangles = make_object(obj);            // espace objet -> monde
-        view_transform(&triangles, cam);                         // monde -> camera
-        TrianglesObjectImage image = project(&triangles);        // camera -> ecran;
-        rasterization(&image, buffer);                           // ecran -> pixels
+        TrianglesObject triangles = make_object(obj);
+        view_transform(&triangles, cam);
+        TrianglesObjectImage image = project(&triangles, buffer->width, buffer->height);
+        rasterization(&image, buffer);
 
         free(triangles.triangles);
         free(image.triangles);

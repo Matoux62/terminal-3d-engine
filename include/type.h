@@ -22,6 +22,10 @@ typedef struct {int max_object; int current_nb_object; Object *object_list[MAX_O
 typedef struct {int height; int width;} TermSize;
 typedef struct {int triangle_count; Triangle *triangles;} TrianglesObject;
 typedef struct {int triangle_count; TriangleImage *triangles;} TrianglesObjectImage;
-typedef struct {char buffer[HEIGTH*WIDTH];} FrameBuffer;
+typedef struct {
+    int   width;
+    int   height;
+    char *buffer;
+} FrameBuffer;
 
 #endif
